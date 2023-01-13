@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createRef } from 'react';
 import currentStyles from './index.module.scss';
 import {Upload, Form, Table} from 'antd';
 import type { UploadProps } from 'antd';
-import { FileAddOutlined, FolderOpenOutlined, PictureOutlined } from '@ant-design/icons';
+import { v4 as uuidv4 } from 'uuid';
 import type { UploadFile } from 'antd/es/upload/interface';
 import commonController from "../../utils/common/common";
 import { uploadFile as uploadFileService } from "../../services/createTask";
 import { Tree } from 'antd';
 import {useSelector, useDispatch} from "react-redux";
 import { updateNewSamples } from '../../stores/sample.store';
+import NativeUpload from '../../components/nativeUpload'
 let newFileList : any[] = [];
 let newFileListInfo : any[] = [];
 let newFolder : any = {};
@@ -36,8 +37,7 @@ const InputInfoConfig = ()=>{
 
 
 
-    const finishUpload = (values : any)=>{
-    }
+    const inputRef = createRef<any>();
 
     const [flag, setFlag] = useState(true);
 
@@ -167,20 +167,26 @@ const InputInfoConfig = ()=>{
     const isCorrectFiles = (files : any)=>{
         let result = true;
         if (files.length > 100) {
-            commonController.notificationErrorMessage({message : '单次上传文件数量超过上限100个，请分批上传'}, 3);
+            setTimeout(()=>{
+                commonController.notificationErrorMessage({message : '单次上传文件数量超过上限100个，请分批上传'}, 3);
+            }, 4000)
             return;
         }
         for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
             let fileUnit = files[fileIndex];
-            let isOverSize = commonController.isOverSize(fileUnit.OriginSize);
+            let isOverSize = commonController.isOverSize(fileUnit.size);
             if(isOverSize) {
-                commonController.notificationErrorMessage({message : '单个文件大小超过100MB限制'}, 3);
+                setTimeout(()=>{
+                    commonController.notificationErrorMessage({message : '单个文件大小超过100MB限制'}, 3);
+                }, 4000)
                 result = false;
                 break;
             }
-            let isCorrectFileType = commonController.isCorrectFileType(fileUnit.file.name);
+            let isCorrectFileType = commonController.isCorrectFileType(fileUnit.name);
             if(!isCorrectFileType) {
-              commonController.notificationErrorMessage({message : '请上传支持的文件类型，类型包括：jpg、png、bmp、gif'}, 3);
+              setTimeout(()=>{
+                commonController.notificationErrorMessage({message : '请上传支持的文件类型，类型包括：jpg、png、bmp、gif'}, 3);
+              },4000)
               result = false;break;}
         }
         return result;
@@ -191,6 +197,7 @@ const InputInfoConfig = ()=>{
     // 3. 上传成功
     // 4. 上传失败
     const updateOneOfHaveUplodaedFileList = (uid : any, hasUploaded : any, result : any)=>{
+        console.log(haveUploadFiles)
         let temp = haveUploadFiles.concat([]);
         for (let haveUploadedFilesIndex = 0; haveUploadedFilesIndex < temp.length; haveUploadedFilesIndex++) {
             let haveUploadedFile = temp[haveUploadedFilesIndex];
@@ -201,9 +208,6 @@ const InputInfoConfig = ()=>{
                   haveUploadedFile.url = result.data.data.url;
                   haveUploadedFile.id = result.data.data.id;
                 }
-              // uploadId : result?.data.data.id,
-              // url : result.data.data.url,
-              // id : result.data.data.id,
                 setHaveUploadFiles(temp);
                 break;
             }
@@ -214,26 +218,24 @@ const InputInfoConfig = ()=>{
       for (let currentNewFileListIndex = 0; currentNewFileListIndex < currentNewFileList.length; currentNewFileListIndex++) {
           let currentInfo =  currentNewFileList[currentNewFileListIndex];
           currentListContainer.push({
-              name : currentInfo.file.name,
-              size : currentInfo.file.size,
+              name : currentInfo.name,
+              size : currentInfo.size,
               hasUploaded : 2,
-              // uploadId : result?.data.data.id,
-              // url : result.data.data.url,
-              // id : result.data.data.id,
               params : {
-                  path : currentInfo.file.webkitRelativePath ? currentInfo.file.webkitRelativePath : './',
-                  file : currentInfo.file
+                  path : currentInfo.webkitRelativePath === '' ? './' : currentInfo.webkitRelativePath,
+                  file : currentInfo
               },
-              uid : currentInfo.file.uid
+              uid : uuidv4()
           });
       }
-        if (commonController.isNullObject(newFolder)) {
+        // if (commonController.isNullObject(newFolder)) {
             setHaveUploadFiles(haveUploadFiles.concat(currentListContainer))
             saveFolderFiles = saveFolderFiles.concat(currentListContainer);
-        }else{
-            setHaveUploadFiles(haveUploadFiles.concat(currentListContainer, [newFolder]))
-            saveFolderFiles.push(newFolder);
-        }
+            setTemp(currentListContainer.concat());
+        // }else{
+        //     setHaveUploadFiles(haveUploadFiles.concat(currentListContainer, [newFolder]))
+        //     saveFolderFiles.push(newFolder);
+        // }
     }
     const [startToUpload, setStartToUpload] = useState(1);
     const newCustomRequest = async function (info : any){
@@ -317,18 +319,19 @@ const InputInfoConfig = ()=>{
         // let temp = newFileListInfo.concat([]);
         // setTemp(temp);
         setStartUploadFlag(true);
+        console.log(temp);
         for (let newFileListInfoIndex = 0; newFileListInfoIndex < temp.length; newFileListInfoIndex++) {
             let currentInfo =  temp[newFileListInfoIndex];
             let result = undefined;
             // if (path.indexOf('/') > -1)
             {
-                result = await uploadFileService(taskId, {  file : currentInfo.file  });
+                result = await uploadFileService(taskId, {  file : currentInfo  });
                 setTempC(newFileListInfoIndex + 1);
                 if (result?.status === 201) {
                     setUploadedSuccessful(uploadedSuccessful + 1);
-                    updateOneOfHaveUplodaedFileList(currentInfo.file.uid, 3, result);
+                    updateOneOfHaveUplodaedFileList(currentInfo.uid, 3, result);
                 }else{
-                    updateOneOfHaveUplodaedFileList(currentInfo.file.uid, 4, undefined);
+                    updateOneOfHaveUplodaedFileList(currentInfo.uid, 4, undefined);
                 }
             }
         }
@@ -349,8 +352,9 @@ const InputInfoConfig = ()=>{
 
     }
 
-    const deleteUploadFiles = ()=>{
-    }
+    useEffect(()=>{
+      // inputRef.current.webkitdirectory = true;
+    },[])
 
     const deleteSingleFile = (itemIndex : number)=>{
 
@@ -469,6 +473,19 @@ const InputInfoConfig = ()=>{
         }
       },
     ]
+    const inputFolder = (files : any)=>{
+      commonController.notificationSuccessMessage({message : '已添加'+ files.length + '个项目至上传列表'},3);
+      let isCorrectCondition = isCorrectFiles(files);
+      if(!isCorrectCondition){
+         // commonController.notificationErrorMessage({message : '请重新选择合适的文件'}, 2);
+         // newFileList = [];
+         // newFileListInfo = [];
+         return;
+      }
+      // setTemp(files);
+      addToHaveUploadFilesList(files);
+      setStartToUpload(startToUpload + 1);
+    }
     return (<div className = {currentStyles.outerFrame}>
         <div className = {currentStyles.title}>
             <div className={currentStyles.icon}></div>
@@ -481,52 +498,77 @@ const InputInfoConfig = ()=>{
                     <div className = { currentStyles.survey }></div>
                     <div className = { currentStyles.buttons }>
                         <div className = { currentStyles.uploadFileButton }>
-                            <Upload
-                                action = {'/api/v1/tasks/1/upload'}
-                                // data = {{path : aa}}
-                                fileList = {fileList}
-                                // maxCount = {1}
-                                onChange = { handleChange }
-                                multiple =  {true}
-                                showUploadList = {false}
-                                customRequest={ newCustomRequest }
-                            >
-                                {/*<FileAddOutlined style={{color : '#FFFFFF'}} />*/}
+                            {/*<Upload*/}
+                            {/*    action = {'/api/v1/tasks/1/upload'}*/}
+                            {/*    // data = {{path : aa}}*/}
+                            {/*    fileList = {fileList}*/}
+                            {/*    // maxCount = {1}*/}
+                            {/*    onChange = { handleChange }*/}
+                            {/*    multiple =  {true}*/}
+                            {/*    showUploadList = {false}*/}
+                            {/*    customRequest={ newCustomRequest }*/}
+                            {/*>*/}
+                            {/*    /!*<FileAddOutlined style={{color : '#FFFFFF'}} />*!/*/}
+                            {/*    <div className={currentStyles.buttonDiv}>*/}
+                            {/*  <img src="/src/icons/uploadFile.svg" alt=""/>*/}
+                            {/*    <div style = {{display : 'inline-block', color : '#FFFFFF'}}>上传文件</div>*/}
+                            {/*    </div>*/}
+                            {/*</Upload>*/}
+
+                            <NativeUpload onChange={ inputFolder } directory={false} multiple={true} accept={'image/png,image/jpeg,image/bmp,image/gif'}>
                                 <div className={currentStyles.buttonDiv}>
-                              <img src="/src/icons/uploadFile.svg" alt=""/>
-                                <div style = {{display : 'inline-block', color : '#FFFFFF'}}>上传文件</div>
+                                    <img src="/src/icons/uploadFile.svg" alt=""/>
+                                    <div style = {{display : 'inline-block', color : '#FFFFFF'}}>上传文件</div>
                                 </div>
-                            </Upload>
+                            </NativeUpload>
                         </div>
                         <div className = { currentStyles.uploadFolderButton }>
                             {/*<div className = {currentStyles.uploadIcon}></div>*/}
 
-                            <Upload directory
-                                // customRequest={customReques
+                            {/*<Upload directory*/}
+                            {/*    // customRequest={customReques*/}
 
-                                    action = {'/api/v1/tasks/1/upload'}
-                                    // data = {{path : folderFilePath}}
-                                    fileList = {fileList}
-                                    // maxCount = {1}
-                                    onChange = { handleUploadFolderChange }
-                                    multiple =  { true }
-                                    showUploadList = { false }
-                                    customRequest={ newCustomRequest }
-                            >
-                                {/*<FolderOpenOutlined style = {{color : '#1b67ff'}}/>*/}
-                              <div className={currentStyles.buttonDiv}>
-                              <img src="/src/icons/uploadFolder.svg" alt=""/>
+                            {/*        action = {'/api/v1/tasks/1/upload'}*/}
+                            {/*        // data = {{path : folderFilePath}}*/}
+                            {/*        fileList = {fileList}*/}
+                            {/*        // maxCount = {1}*/}
+                            {/*        onChange = { handleUploadFolderChange }*/}
+                            {/*        multiple =  { true }*/}
+                            {/*        showUploadList = { false }*/}
+                            {/*        customRequest={ newCustomRequest }*/}
+                            {/*>*/}
+                            {/*    /!*<FolderOpenOutlined style = {{color : '#1b67ff'}}/>*!/*/}
+                            {/*  <div className={currentStyles.buttonDiv}>*/}
+                            {/*  <img src="/src/icons/uploadFolder.svg" alt=""/>*/}
 
-                              <div style = {{display : 'inline-block', color : '#1b67ff'}}>上传文件夹</div>
-                              </div>
+                            {/*      <div style = {{display : 'inline-block', color : '#1b67ff'}}>上传文件夹</div>*/}
 
-                            </Upload>
+
+                            {/*  </div>*/}
+                            {/*</Upload>*/}
+
+
+                            <NativeUpload onChange={ inputFolder } directory={true}  accept={'image/jpg,image/jpeg,image/bmp,image/gif'}>
+                                <div className={currentStyles.buttonDiv}>
+                                    <img src="/src/icons/uploadFolder.svg" alt=""/>
+                                    <div style = {{display : 'inline-block', color : '#1b67ff'}}>上传文件夹</div>
+                                </div>
+                            </NativeUpload>
+
                         </div>
                     </div>
                     <div className= { currentStyles.illustration }>
                         <div className = { currentStyles.supportType }>&nbsp;支持文件类型包括：jpg、png、bmp、gif
                         </div>
                         <div className = { currentStyles.advises }> 单次上传文件最大数量为100个，建议单个文件大小不超过100MB </div>
+                    </div>
+
+                    {/*<div style = {{display : 'inline-block', color : '#1b67ff'}}>*/}
+                    {/*    <input type="file" multiple ref = {inputRef} onChange = {inputFolder}/>*/}
+                    {/*</div>*/}
+
+
+                    <div>
                     </div>
                 </div>
             </div>
@@ -582,7 +624,7 @@ const InputInfoConfig = ()=>{
 
 
                         {haveUploadFiles && haveUploadFiles.length > 0 && haveUploadFiles.map((item : any, itemIndex : number)=>{
-
+                            console.log( item );
                             if (item.children) {
                                 return (<div className = {currentStyles.folderItem}>
                                     <DirectoryTree
@@ -592,7 +634,7 @@ const InputInfoConfig = ()=>{
                                     />
                                 </div>)
                             }else{
-                                return (<div className = {currentStyles.item}>
+                                return (<div className = {currentStyles.item} key = {item.name + new Date().getTime()}>
                                     <div className = {currentStyles.columnFileName}><img src='/src/icons/file.svg' />&nbsp;&nbsp;{item.name}</div>
                                     <div className = {currentStyles.columnFileName}>&nbsp;&nbsp;&nbsp;&nbsp;{item.params.path}</div>
                                     <div className = {currentStyles.columnStatus}>&nbsp;&nbsp;{item.hasUploaded === 1 ?

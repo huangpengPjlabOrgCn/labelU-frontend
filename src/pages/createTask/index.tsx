@@ -284,7 +284,7 @@ const CreateTask = (props : any)=>{
                 {steps.map((step : any, stepIndex : number)=>{
                     if (stepIndex === steps.length - 1) {
                         return (<Step ordinalNumber = {step.index} title = {step.title}
-                        contentUrl = {step.contentUrl}/>)
+                        contentUrl = {step.contentUrl} key = {stepIndex}/>)
                     }else{
                         return (
                             <React.Fragment>
