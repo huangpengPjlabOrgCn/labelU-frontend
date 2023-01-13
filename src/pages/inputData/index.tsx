@@ -524,7 +524,7 @@ const InputInfoConfig = ()=>{
                         </div>
                     </div>
                     <div className= { currentStyles.illustration }>
-                        <div className = { currentStyles.supportType }>&nbsp;支持文件类型包括：jpg、png、bmp、gif。
+                        <div className = { currentStyles.supportType }>&nbsp;支持文件类型包括：jpg、png、bmp、gif
                         </div>
                         <div className = { currentStyles.advises }> 单次上传文件最大数量为100个，建议单个文件大小不超过100MB </div>
                     </div>
